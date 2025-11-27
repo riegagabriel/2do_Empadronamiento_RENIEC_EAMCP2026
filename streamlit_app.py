@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 
 # ========================
 # CONFIGURACIÓN GENERAL
@@ -19,13 +20,23 @@ st.markdown("Monitoreo de avance de los Municipios de Centros Poblados (MCP)")
 def load_value_box():
     try:
         df = pd.read_excel("data/value_box.xlsx")
-        df.columns = df.columns.str.strip()  # Limpia espacios accidentales
+        df.columns = df.columns.str.strip()
         return df
     except Exception as e:
         st.error(f"Error cargando value_box.xlsx: {e}")
         return pd.DataFrame({"Variable": [], "Valor": []})
 
+@st.cache_data
+def load_data_graf():
+    try:
+        df = pd.read_excel("data/data_graf.xlsx")
+        return df
+    except Exception as e:
+        st.error(f"Error cargando data_graf.xlsx: {e}")
+        return pd.DataFrame()
+
 value_box = load_value_box()
+data_graf = load_data_graf()
 
 # ========================
 # PESTAÑAS
@@ -46,7 +57,7 @@ with tab1:
     # Convertir df a diccionario
     indicadores = dict(zip(value_box["Variable"], value_box["Valor"]))
 
-    # Extraer valores seguros
+    # Extraer valores
     dnis_reg = indicadores.get("dnis_registrados", 0)
     deps = indicadores.get("departamentos", 0)
     mcps = indicadores.get("MCPs", 0)
@@ -65,6 +76,82 @@ with tab1:
     col5.metric("🗓️ Fechas de trabajo", fechas)
 
     st.markdown("---")
+
+    # ========================
+    # 📊 GRÁFICO — Avance por fecha y MCP
+    # ========================
+
+    if not data_graf.empty:
+
+        # Convertir fecha
+        data_graf['date'] = pd.to_datetime(data_graf['date'], format='%d%b%Y')
+
+        # Agregado por MCP
+        data_agregado = (
+            data_graf.groupby(['date', 'mcp'])['dni_ciu']
+            .count()
+            .reset_index()
+            .rename(columns={'dni_ciu': 'count'})
+        ).sort_values('date')
+
+        # Total general
+        data_total = (
+            data_agregado.groupby('date')['count']
+            .sum()
+            .reset_index()
+            .rename(columns={'count': 'total_count'})
+        )
+
+        # Crear gráfico
+        fig = go.Figure()
+
+        # Línea total
+        fig.add_trace(go.Scatter(
+            x=data_total['date'],
+            y=data_total['total_count'],
+            mode='lines+markers',
+            name='TOTAL GENERAL',
+            line=dict(color='red', width=3),
+            marker=dict(size=8),
+            hovertemplate='<b>TOTAL GENERAL</b><br>Fecha: %{x}<br>Registros: %{y}<extra></extra>'
+        ))
+
+        # Líneas por MCP
+        for mcp in data_agregado['mcp'].unique():
+            df_mcp = data_agregado[data_agregado['mcp'] == mcp]
+            fig.add_trace(go.Scatter(
+                x=df_mcp['date'],
+                y=df_mcp['count'],
+                mode='lines+markers',
+                name=mcp,
+                line=dict(width=1.5),
+                marker=dict(size=5),
+                visible='legendonly',
+                hovertemplate=f'<b>{mcp}</b><br>Fecha: %{{x}}<br>Registros: %{{y}}<extra></extra>'
+            ))
+
+        # Layout
+        fig.update_layout(
+            title='📈 Avance de Registros por MCP y Fecha',
+            xaxis_title='Fecha',
+            yaxis_title='Cantidad de Registros (DNI)',
+            hovermode='x unified',
+            legend=dict(
+                title='MCPs (clic para mostrar/ocultar)',
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.01
+            ),
+            height=600,
+            template='plotly_white'
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    else:
+        st.warning("No se pudo cargar `data_graf.xlsx`. No se muestra el gráfico.")
+
     st.markdown("### Nota")
     st.write("Los indicadores se actualizan automáticamente desde `data/value_box.xlsx`.")
 
