@@ -41,7 +41,7 @@ tab1, tab2, tab3 = st.tabs([
 # ===========================================
 with tab1:
 
-    st.subheader("Indicadores Generales")
+    st.subheader("Indicadores")
 
     # Convertir df a diccionario
     indicadores = dict(zip(value_box["Variable"], value_box["Valor"]))
