@@ -352,7 +352,7 @@ with tab3:
     st.subheader("🗺️ Mapa de Empadronamiento")
     
     # Ruta del archivo HTML del mapa
-    mapa_path = "mapa_empadronamiento.html"
+    mapa_path = "data/mapa_empadronamiento.html"
     
     # Verificar si el archivo existe
     if os.path.exists(mapa_path):
