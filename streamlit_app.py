@@ -165,37 +165,31 @@ with tab1:
     st.markdown("### Nota")
     st.write("Los indicadores se actualizan automáticamente desde `data/value_box.xlsx`.")
 
-st.markdown("---")
+# ===========================================
+# 📍 TAB 2: DETALLE POR MCP
+# ===========================================
+with tab2:
 
-    # ========================
-    # 📋 TABLA DESAGREGADA MCP
-    # ========================
     st.subheader("📋 Avance por Departamento, Provincia y MCP")
 
     if not tabla_desagregada_mcp_merged.empty:
 
-        # 1. Ordenar tabla por departamento
         tabla_desagregada_mcp_merged = tabla_desagregada_mcp_merged.sort_values(
             by=["departamento", "PROV", "MCP"]
         )
 
-        # 2. Selector de departamento
         departamentos = tabla_desagregada_mcp_merged["departamento"].unique()
         dep_select = st.selectbox("Selecciona un departamento:", departamentos)
 
-        # Filtrar por departamento
         df_dep = tabla_desagregada_mcp_merged[
             tabla_desagregada_mcp_merged["departamento"] == dep_select
         ]
 
-        # 3. Selector de provincia dentro del departamento
         provincias = df_dep["PROV"].unique()
         prov_select = st.selectbox("Selecciona una provincia:", provincias)
 
-        # Filtrar por provincia
         df_prov = df_dep[df_dep["PROV"] == prov_select]
 
-        # 4. Mostrar tabla final por MCP
         st.write(f"### Resultados para: **{dep_select} / {prov_select}**")
 
         st.dataframe(
@@ -216,13 +210,8 @@ st.markdown("---")
         st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
 
 # ===========================================
-# 📍 TAB 2: DETALLE MCP (placeholder)
-# ===========================================
-with tab2:
-    st.info("Próximamente: detalle por Municipio de Centro Poblado.")
-
-# ===========================================
 # 📋 TAB 3: OTROS INDICADORES (placeholder)
 # ===========================================
 with tab3:
     st.info("Próximamente: indicadores adicionales.")
+
