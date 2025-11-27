@@ -218,45 +218,53 @@ with tab1:
 
     st.markdown("---")
 
-    # Tabla de Avance por MCP (si existe)
-    st.subheader("📋 Tabla de Avance por MCP")
-    if not tabla_desagregada_mcp_merged.empty:
-        try:
-            tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
-                by=["departamento", "PROV", "MCP"]
-            )
+# Tabla de Avance por MCP (si existe)
+st.subheader("📋 Tabla de Avance por MCP")
+if not tabla_desagregada_mcp_merged.empty:
+    try:
+        tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
+            by=["departamento", "PROV", "MCP"]
+        )
 
-            tabla_mostrar = tabla_ordenada.rename(columns={
-                "departamento": "Departamento",
-                "PROV": "Provincia",
-                "MCP": "Municipalidad de Centro Poblado",
-                "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
-                "dni_ciu": "Cantidad de DNIs Registrados",
-                "PORC_AVANCE": "% Avance",
-            })
+        tabla_mostrar = tabla_ordenada.rename(columns={
+            "departamento": "Departamento",
+            "PROV": "Provincia",
+            "MCP": "Municipalidad de Centro Poblado",
+            "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
+            "dni_ciu": "Cantidad de DNIs Registrados",
+            "PORC_AVANCE": "% Avance",
+        })
 
-            tabla_mostrar = tabla_mostrar.reset_index(drop=True)
-            tabla_mostrar.index = tabla_mostrar.index + 1
-            tabla_mostrar.index.name = "N°"
+        # ORDENAR DE MAYOR A MENOR POR DNIs REGISTRADOS
+        tabla_mostrar = tabla_mostrar.sort_values(
+            by="Cantidad de DNIs Registrados",
+            ascending=False
+        )
 
-            columnas_mostrar = [
-                "Departamento",
-                "Provincia",
-                "Municipalidad de Centro Poblado",
-                "Población Electoral Estimada",
-                "Cantidad de DNIs Registrados",
-                "% Avance",
-            ]
+        tabla_mostrar = tabla_mostrar.reset_index(drop=True)
+        tabla_mostrar.index = tabla_mostrar.index + 1
+        tabla_mostrar.index.name = "N°"
 
-            st.dataframe(
-                tabla_mostrar[columnas_mostrar],
-                use_container_width=True,
-                height=600
-            )
-        except Exception as e:
-            st.error(f"Error mostrando tabla_desagregada_mcp_merged: {e}")
-    else:
-        st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
+        columnas_mostrar = [
+            "Departamento",
+            "Provincia",
+            "Municipalidad de Centro Poblado",
+            "Población Electoral Estimada",
+            "Cantidad de DNIs Registrados",
+            "% Avance",
+        ]
+
+        st.dataframe(
+            tabla_mostrar[columnas_mostrar],
+            use_container_width=True,
+            height=600
+        )
+
+    except Exception as e:
+        st.error(f"Error mostrando tabla_desagregada_mcp_merged: {e}")
+else:
+    st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
+
 
 # ===========================================
 # 📍 TAB 2: DETALLE POR MCP (Por empadronador)
