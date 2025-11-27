@@ -9,7 +9,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Dashboard RENIEC – Progreso General del Empadronamiento")
+st.title("📊 2do Empadronamiento")
 st.markdown("Monitoreo de avance de los Municipios de Centros Poblados (MCP)")
 
 # ========================
@@ -61,8 +61,8 @@ with tab1:
     col1.metric("🆔 DNIs Registrados", f"{dnis_reg:,}")
     col2.metric("🗺️ Departamentos", deps)
     col3.metric("🏛️ MCPs", mcps)
-    col4.metric("📍 CCPPs", ccpp)
-    col5.metric("🗓️ Fechas con registro", fechas)
+    col4.metric("📍 Centros Poblados", ccpp)
+    col5.metric("🗓️ Fechas de trabajo", fechas)
 
     st.markdown("---")
     st.markdown("### Nota")
