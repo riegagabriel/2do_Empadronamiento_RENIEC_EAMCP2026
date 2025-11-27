@@ -331,6 +331,6 @@ with tab2:
                 st.plotly_chart(fig, use_container_width=True)
 
                 # Tabla resumen (ordenada desc)
-                st.markdown("### 📋 Tabla resumida")
+                st.markdown("### 📋 Tabla de conteo general")
                 st.dataframe(conteo.sort_values("total_registros", ascending=False), use_container_width=True)
 
