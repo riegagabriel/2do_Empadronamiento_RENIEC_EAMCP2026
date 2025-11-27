@@ -3,11 +3,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import os
 
-# ================
-# DEBUG: listar carpeta data
-# ================
-st.write("🔍 Archivos dentro de /data:", os.listdir("data"))
-
 # ========================
 # CONFIGURACIÓN GENERAL
 # ========================
@@ -278,10 +273,6 @@ with tab2:
 
         # Obtener df
         df_mcp = mcp_details.get(mcp_seleccionado, pd.DataFrame())
-
-        # Mostrar columnas detectadas (útil para debug)
-        if not df_mcp.empty:
-            st.write("Columnas detectadas:", list(df_mcp.columns))
 
         if df_mcp.empty:
             st.warning(f"No hay datos procesables para {mcp_seleccionado}.")
