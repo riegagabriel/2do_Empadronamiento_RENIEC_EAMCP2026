@@ -163,7 +163,7 @@ with tab1:
         st.warning("No se pudo cargar `data_graf.xlsx`. No se muestra el gráfico.")
 
     st.markdown("---")
-st.subheader("📋 Avance por Departamento, Provincia y MCP (Tabla Completa)")
+st.subheader("📋 Tabla de Avance por MCP")
 
 if not tabla_desagregada_mcp_merged.empty:
 
