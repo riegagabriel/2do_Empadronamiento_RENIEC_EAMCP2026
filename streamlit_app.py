@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
+import os
+st.write("🔍 Archivos dentro de /data:", os.listdir("data"))
+
+
 # ========================
 # CONFIGURACIÓN GENERAL
 # ========================
