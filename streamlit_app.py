@@ -162,44 +162,51 @@ with tab1:
     else:
         st.warning("No se pudo cargar `data_graf.xlsx`. No se muestra el gráfico.")
 
-        st.markdown("---")
-    st.subheader("📋 Avance por Departamento, Provincia y MCP (Tabla Completa)")
+    st.markdown("---")
+st.subheader("📋 Avance por Departamento, Provincia y MCP (Tabla Completa)")
 
-    if not tabla_desagregada_mcp_merged.empty:
+if not tabla_desagregada_mcp_merged.empty:
 
-        # Ordenar tabla
-        tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
-            by=["departamento", "PROV", "MCP"]
-        )
+    # Ordenar tabla
+    tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
+        by=["departamento", "PROV", "MCP"]
+    )
 
-        # Renombrar columnas para mostrar
-        tabla_mostrar = tabla_ordenada.rename(columns={
-            "departamento": "Departamento",
-            "PROV": "Provincia",
-            "MCP": "Municipialidad de Centro Poblado",
-            "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
-            "dni_ciu": "Cantidad de DNIs Registrados",
-            "PORC_AVANCE": "% Avance",
-        })
+    # Renombrar columnas para mostrar
+    tabla_mostrar = tabla_ordenada.rename(columns={
+        "departamento": "Departamento",
+        "PROV": "Provincia",
+        "MCP": "Municipalidad de Centro Poblado",
+        "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
+        "dni_ciu": "Cantidad de DNIs Registrados",
+        "PORC_AVANCE": "% Avance",
+    })
 
-        # Mostrar tabla
-        st.dataframe(
-            tabla_mostrar[
-                [
-                    "Departamento",
-                    "Provincia",
-                    "Municipialidad de Centro Poblado",
-                    "Población Electoral Estimada",
-                    "Cantidad de DNIs Registrados",
-                    "% Avance",
-                ]
-            ],
-            use_container_width=True,
-            height=600
-        )
+    # Crear índice desde 1
+    tabla_mostrar = tabla_mostrar.reset_index(drop=True)
+    tabla_mostrar.index = tabla_mostrar.index + 1
+    tabla_mostrar.index.name = "N°"
 
-    else:
-        st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
+    # Columnas a mostrar (seguras)
+    columnas_mostrar = [
+        "Departamento",
+        "Provincia",
+        "Municipalidad de Centro Poblado",
+        "Población Electoral Estimada",
+        "Cantidad de DNIs Registrados",
+        "% Avance",
+    ]
+
+    # Mostrar tabla final
+    st.dataframe(
+        tabla_mostrar[columnas_mostrar],
+        use_container_width=True,
+        height=600
+    )
+
+else:
+    st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
+
 
 
 
