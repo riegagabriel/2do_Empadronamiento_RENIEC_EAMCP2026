@@ -231,6 +231,7 @@ if not tabla_desagregada_mcp_merged.empty:
 else:
     st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
     
+
 # ===========================================
 # 📍 TAB 2: DETALLE POR MCP (Por empadronador)
 # ===========================================
@@ -249,45 +250,38 @@ with tab2:
     if df_mcp.empty:
         st.warning("No hay datos para este MCP.")
     else:
-        # =======================================
-        # Agrupar: registros por empadronador
-        # =======================================
-        conteo = (
-            df_mcp.groupby("empadronador")["dni_ciu"]
-            .count()
-            .reset_index(name="total_registros")
-            .sort_values("total_registros", ascending=True)
-        )
 
-        st.markdown(f"### 🧑‍💼 Registros por empadronador — {mcp_seleccionado}")
+        # Validación de columnas
+        columnas_esperadas = {"empadronador", "total_registros"}
+        columnas_presentes = set(df_mcp.columns.str.lower())
 
-        # ============================
-        # Grafico de barras horizontal
-        # ============================
-        fig = go.Figure()
+        if not columnas_esperadas.issubset(columnas_presentes):
+            st.error(
+                f"❌ El archivo de {mcp_seleccionado} no tiene las columnas requeridas.\n\n"
+                f"Esperadas: {columnas_esperadas}\n"
+                f"Encontradas: {list(df_mcp.columns)}"
+            )
+        else:
+            # Asegurar nombres consistentes
+            df_mcp.columns = df_mcp.columns.str.lower()
 
-        fig.add_trace(go.Bar(
-            x=conteo["total_registros"],
-            y=conteo["empadronador"],
-            orientation="h",
-            marker=dict(color="#4A90E2"),
-            hovertemplate="<b>%{y}</b><br>Registros: %{x}<extra></extra>"
-        ))
+            # Orden ascendente para gráfico
+            conteo = df_mcp.sort_values("total_registros", ascending=True)
 
-        fig.update_layout(
-            title=f"Total de registros por empadronador — {mcp_seleccionado}",
-            xaxis_title="Total de registros (DNIs)",
-            yaxis_title="Empadronador",
-            height=600,
-            template="plotly_white"
-        )
+            st.markdown(f"### 🧑‍💼 Registros por empadronador — {mcp_seleccionado}")
 
-        st.plotly_chart(fig, use_container_width=True)
+            # ============================
+            # 📊 Gráfico de barras horizontal
+            # ============================
+            fig = go.Figure()
 
-        # ============================
-        # Mostrar tabla ordenada
-        # ============================
-        st.markdown("### 📋 Tabla resumida")
-        st.dataframe(conteo.sort_values("total_registros", ascending=False),
-                     use_container_width=True)
+            fig.add_trace(go.Bar(
+                x=conteo["total_registros"],
+                y=conteo["empadronador"],
+                orientation="h",
+                marker=dict(color="#4A90E2"),
+                hovertemplate="<b>%{y}</b><br>Registros: %{x}<extra></extra>"
+            ))
+
+            fig.update_layout(_
 
