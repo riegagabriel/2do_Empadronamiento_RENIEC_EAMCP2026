@@ -76,10 +76,9 @@ mcp_details = load_mcp_details()
 # ========================
 # PESTAÑAS
 # ========================
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2 = st.tabs([
     "📈 Progreso General",
     "📍 Monitoreo por MCP",
-    "📋 MAPAS?
 ])
 
 # ===========================================
@@ -291,12 +290,4 @@ with tab2:
         st.markdown("### 📋 Tabla resumida")
         st.dataframe(conteo.sort_values("total_registros", ascending=False),
                      use_container_width=True)
-
-
-
-# ===========================================
-# 📋 TAB 3: OTROS INDICADORES (placeholder)
-# ===========================================
-with tab3:
-    st.info("Próximamente: indicadores adicionales.")
 
