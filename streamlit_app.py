@@ -35,8 +35,18 @@ def load_data_graf():
         st.error(f"Error cargando data_graf.xlsx: {e}")
         return pd.DataFrame()
 
+@st.cache_data
+def load_tabla_desagregada_mcp_merged():
+    try:
+        df = pd.read_excel("data/tabla_desagregada_mcp_merged.xlsx")
+        return df
+    except Exception as e:
+        st.error(f"Error cargando tabla_desagregada_mcp_merged.xlsx: {e}")
+        return pd.DataFrame()
+
 value_box = load_value_box()
 data_graf = load_data_graf()
+tabla_desagregada_mcp_merged = load_tabla_desagregada_mcp_merged()
 
 # ========================
 # PESTAÑAS
@@ -154,6 +164,56 @@ with tab1:
 
     st.markdown("### Nota")
     st.write("Los indicadores se actualizan automáticamente desde `data/value_box.xlsx`.")
+
+st.markdown("---")
+
+    # ========================
+    # 📋 TABLA DESAGREGADA MCP
+    # ========================
+    st.subheader("📋 Avance por Departamento, Provincia y MCP")
+
+    if not tabla_desagregada_mcp_merged.empty:
+
+        # 1. Ordenar tabla por departamento
+        tabla_desagregada_mcp_merged = tabla_desagregada_mcp_merged.sort_values(
+            by=["departamento", "PROV", "MCP"]
+        )
+
+        # 2. Selector de departamento
+        departamentos = tabla_desagregada_mcp_merged["departamento"].unique()
+        dep_select = st.selectbox("Selecciona un departamento:", departamentos)
+
+        # Filtrar por departamento
+        df_dep = tabla_desagregada_mcp_merged[
+            tabla_desagregada_mcp_merged["departamento"] == dep_select
+        ]
+
+        # 3. Selector de provincia dentro del departamento
+        provincias = df_dep["PROV"].unique()
+        prov_select = st.selectbox("Selecciona una provincia:", provincias)
+
+        # Filtrar por provincia
+        df_prov = df_dep[df_dep["PROV"] == prov_select]
+
+        # 4. Mostrar tabla final por MCP
+        st.write(f"### Resultados para: **{dep_select} / {prov_select}**")
+
+        st.dataframe(
+            df_prov[
+                [
+                    "departamento",
+                    "PROV",
+                    "MCP",
+                    "POBLACION_AJUSTADA_FINAL",
+                    "dni_ciu",
+                    "PORC_AVANCE",
+                ]
+            ],
+            use_container_width=True
+        )
+
+    else:
+        st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
 
 # ===========================================
 # 📍 TAB 2: DETALLE MCP (placeholder)
