@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-
 import os
-st.write("🔍 Archivos dentro de /data:", os.listdir("data"))
 
+# ================
+# DEBUG: listar carpeta data
+# ================
+st.write("🔍 Archivos dentro de /data:", os.listdir("data"))
 
 # ========================
 # CONFIGURACIÓN GENERAL
@@ -18,68 +20,94 @@ st.title("📊 2do Empadronamiento")
 st.markdown("Monitoreo de avance de los Municipios de Centros Poblados (MCP)")
 
 # ========================
-# Cargar DataFrames
+# Helper: cargar excel con manejo de errores
 # ========================
 @st.cache_data
-def load_value_box():
+def load_excel(path: str):
     try:
-        df = pd.read_excel("data/value_box.xlsx")
-        df.columns = df.columns.str.strip()
-        return df
+        return pd.read_excel(path)
     except Exception as e:
-        st.error(f"Error cargando value_box.xlsx: {e}")
-        return pd.DataFrame({"Variable": [], "Valor": []})
-
-@st.cache_data
-def load_data_graf():
-    try:
-        df = pd.read_excel("data/data_graf.xlsx")
-        return df
-    except Exception as e:
-        st.error(f"Error cargando data_graf.xlsx: {e}")
+        # devolvemos DF vacío para no cortar la ejecución
+        st.warning(f"Advertencia al leer {path}: {e}")
         return pd.DataFrame()
 
+# ========================
+# Cargar DataFrames principales
+# ========================
+value_box = load_excel("data/value_box.xlsx")
+data_graf = load_excel("data/data_graf.xlsx")
+tabla_desagregada_mcp_merged = load_excel("data/tabla_desagregada_mcp_merged.xlsx")
+
+# ================================
+# CARGA AUTOMÁTICA DE MCPs (busca files que empiecen con data_monitoreo_)
+# ================================
 @st.cache_data
-def load_tabla_desagregada_mcp_merged():
-    try:
-        df = pd.read_excel("data/tabla_desagregada_mcp_merged.xlsx")
-        return df
-    except Exception as e:
-        st.error(f"Error cargando tabla_desagregada_mcp_merged.xlsx: {e}")
-        return pd.DataFrame()
+def load_mcp_details_from_data_folder():
+    base_path = "data"
+    files = os.listdir(base_path)
+    mcp_dict = {}
 
-@st.cache_data
-def load_mcp_details():
-    data = {}
+    for f in files:
+        low = f.lower()
+        if low.startswith("data_monitoreo_") and (low.endswith(".xlsx") or low.endswith(".xls")):
+            path = os.path.join(base_path, f)
+            df = load_excel(path)
 
-    try:
-        data["19 DE AGOSTO"] = pd.read_excel("data_monitoreo_19_de_agosto.xlsx")
-        data["CIUDAD DE DIOS"] = pd.read_excel("data_monitoreo_ciudad_de_dios.xlsx")
-        data["CRUZ PAMPA YAPATERA"] = pd.read_excel("data_monitoreo_cruz_pampa_yapatera.xlsx")
-        data["CURVA DE SUN"] = pd.read_excel("data_monitoreo_curva_de_sun.xlsx")
-        data["HUAMBOCANCHA ALTA"] = pd.read_excel("data_monitoreo_huambocancha_alta.xlsx")
-        data["HUANCHAQUITO"] = pd.read_excel("data_monitoreo_huanchaquito.xlsx")
-        data["LA COLORADA"] = pd.read_excel("data_monitoreo_la_colorada.xlsx")
-        data["LA PEÑITA"] = pd.read_excel("data_monitoreo_la_peñita.xlsx")
-        data["LA VILLA LETIRA - BECARA"] = pd.read_excel("data_monitoreo_la_villa_letira_becara.xlsx")
-        data["MALINGAS"] = pd.read_excel("data_monitoreo_malingas.xlsx")
-        data["OTUZCO"] = pd.read_excel("data_monitoreo_otuzco.xlsx")
+            # Nombre legible de la MCP: quitar prefijo y extensión, reemplazar guiones/underscores por espacios
+            name = f[len("data_monitoreo_"):]
+            # remover extensión
+            if name.lower().endswith(".xlsx"):
+                name = name[:-5]
+            elif name.lower().endswith(".xls"):
+                name = name[:-4]
+            # formatear nombre: cambiar underscores por espacios y mayúsculas
+            mcp_name = name.replace("_", " ").strip().upper()
 
-        # ⚠️ Estos dos NO aparecen en tu lista de archivos reales
-        # Los dejo pero te avisará si faltan
-        data["SAN ANTONIO BAJO"] = pd.read_excel("data_monitoreo_san_antonio_bajo.xlsx")
-        data["VIVIATE"] = pd.read_excel("data_monitoreo_viviate.xlsx")
+            # Normalizar columnas para reconocimiento (pero no forzamos renombrar en el DF original salvo para uso interno)
+            cols_lower = [c.lower().strip() for c in df.columns]
 
-    except Exception as e:
-        st.error(f"Error cargando datos detallados por MCP: {e}")
+            # Caso 1: archivo ya viene agregado: 'empadronador' y 'total_registros'
+            if ("empadronador" in cols_lower) and ("total_registros" in cols_lower):
+                # Hacemos copia y uniformizamos nombres a minúsculas
+                df2 = df.copy()
+                df2.columns = [c.lower().strip() for c in df2.columns]
+                # Asegurar los tipos
+                try:
+                    df2["total_registros"] = pd.to_numeric(df2["total_registros"], errors="coerce").fillna(0).astype(int)
+                except Exception:
+                    pass
+                mcp_dict[mcp_name] = df2[["empadronador", "total_registros"]]
+                continue
 
-    return data
+            # Caso 2: archivo crudo con registros individuales: buscar columna dni + empadronador para agrupar
+            possible_dni_cols = [c for c in df.columns if "dni" in c.lower() or "doc" in c.lower() or "num_doc" in c.lower()]
+            possible_emp_cols = [c for c in df.columns if "empadronador" in c.lower() or "usuario" in c.lower() or "registrador" in c.lower() or "nom" in c.lower()]
 
+            if possible_dni_cols and possible_emp_cols:
+                dni_col = possible_dni_cols[0]
+                emp_col = possible_emp_cols[0]
+                try:
+                    conteo = (
+                        df.groupby(emp_col)[dni_col]
+                        .count()
+                        .reset_index(name="total_registros")
+                        .rename(columns={emp_col: "empadronador"})
+                        .sort_values("total_registros", ascending=False)
+                    )
+                    # Normalizar columnas
+                    conteo.columns = [c.lower().strip() for c in conteo.columns]
+                    mcp_dict[mcp_name] = conteo[["empadronador", "total_registros"]]
+                    continue
+                except Exception as e:
+                    st.warning(f"No se pudo agregar/contar para {f}: {e}")
 
-value_box = load_value_box()
-data_graf = load_data_graf()
-tabla_desagregada_mcp_merged = load_tabla_desagregada_mcp_merged()
-mcp_details = load_mcp_details()
+            # Si llegamos aquí no pudimos procesar el archivo: lo guardamos pero vacío para avisar luego
+            st.warning(f"El archivo {f} no tiene las columnas esperadas (empadronador/total_registros o empadronador + dni).")
+            mcp_dict[mcp_name] = pd.DataFrame(columns=["empadronador", "total_registros"])
+
+    return mcp_dict
+
+mcp_details = load_mcp_details_from_data_folder()
 
 # ========================
 # PESTAÑAS
@@ -93,25 +121,24 @@ tab1, tab2 = st.tabs([
 # 📈 TAB 1: PROGRESO GENERAL
 # ===========================================
 with tab1:
-
     st.subheader("Indicadores")
 
-    # Convertir df a diccionario
-    indicadores = dict(zip(value_box["Variable"], value_box["Valor"]))
+    # Prevenir error si value_box vacío
+    if not value_box.empty and ("Variable" in value_box.columns) and ("Valor" in value_box.columns):
+        indicadores = dict(zip(value_box["Variable"], value_box["Valor"]))
+    else:
+        indicadores = {}
 
-    # Extraer valores
+    # Extraer valores con fallback
     dnis_reg = indicadores.get("dnis_registrados", 0)
     deps = indicadores.get("departamentos", 0)
     mcps = indicadores.get("MCPs", 0)
     ccpp = indicadores.get("CCPPs", 0)
     fechas = indicadores.get("fecha_registro", 0)
 
-    # ========================
     # Value Boxes (Métricas)
-    # ========================
     col1, col2, col3, col4, col5 = st.columns(5)
-
-    col1.metric("🆔 DNIs Registrados", f"{dnis_reg:,}")
+    col1.metric("🆔 DNIs Registrados", f"{int(dnis_reg):,}" if pd.notna(dnis_reg) else "0")
     col2.metric("🗺️ Departamentos", deps)
     col3.metric("🏛️ MCPs", mcps)
     col4.metric("📍 Centros Poblados", ccpp)
@@ -119,185 +146,200 @@ with tab1:
 
     st.markdown("---")
 
-    # ========================
-    # 📊 GRÁFICO — Avance por fecha y MCP
-    # ========================
-
+    # GRÁFICO — Avance por fecha y MCP
     if not data_graf.empty:
+        try:
+            # intentar parseo con formato dado; si falla, dejar tal cual
+            data_graf = data_graf.copy()
+            if "date" in data_graf.columns:
+                try:
+                    data_graf['date'] = pd.to_datetime(data_graf['date'], format='%d%b%Y')
+                except Exception:
+                    data_graf['date'] = pd.to_datetime(data_graf['date'], errors='coerce')
 
-        # Convertir fecha
-        data_graf['date'] = pd.to_datetime(data_graf['date'], format='%d%b%Y')
+            # Agregado por MCP (necesita columna dni_ciu en raw)
+            if ("mcp" in data_graf.columns) and ("dni_ciu" in data_graf.columns):
+                data_agregado = (
+                    data_graf.groupby(['date', 'mcp'])['dni_ciu']
+                    .count()
+                    .reset_index()
+                    .rename(columns={'dni_ciu': 'count'})
+                ).sort_values('date')
 
-        # Agregado por MCP
-        data_agregado = (
-            data_graf.groupby(['date', 'mcp'])['dni_ciu']
-            .count()
-            .reset_index()
-            .rename(columns={'dni_ciu': 'count'})
-        ).sort_values('date')
+                data_total = (
+                    data_agregado.groupby('date')['count']
+                    .sum()
+                    .reset_index()
+                    .rename(columns={'count': 'total_count'})
+                )
 
-        # Total general
-        data_total = (
-            data_agregado.groupby('date')['count']
-            .sum()
-            .reset_index()
-            .rename(columns={'count': 'total_count'})
-        )
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=data_total['date'],
+                    y=data_total['total_count'],
+                    mode='lines+markers',
+                    name='TOTAL GENERAL',
+                    line=dict(color='red', width=3),
+                    marker=dict(size=8),
+                    hovertemplate='<b>TOTAL GENERAL</b><br>Fecha: %{x}<br>Registros: %{y}<extra></extra>'
+                ))
 
-        # Crear gráfico
-        fig = go.Figure()
+                for mcp in data_agregado['mcp'].unique():
+                    df_mcp_line = data_agregado[data_agregado['mcp'] == mcp]
+                    fig.add_trace(go.Scatter(
+                        x=df_mcp_line['date'],
+                        y=df_mcp_line['count'],
+                        mode='lines+markers',
+                        name=mcp,
+                        line=dict(width=1.5),
+                        marker=dict(size=5),
+                        visible='legendonly',
+                        hovertemplate=f'<b>{mcp}</b><br>Fecha: %{{x}}<br>Registros: %{{y}}<extra></extra>'
+                    ))
 
-        # Línea total
-        fig.add_trace(go.Scatter(
-            x=data_total['date'],
-            y=data_total['total_count'],
-            mode='lines+markers',
-            name='TOTAL GENERAL',
-            line=dict(color='red', width=3),
-            marker=dict(size=8),
-            hovertemplate='<b>TOTAL GENERAL</b><br>Fecha: %{x}<br>Registros: %{y}<extra></extra>'
-        ))
+                fig.update_layout(
+                    title='📈 Avance de Registros por MCP y Fecha',
+                    xaxis_title='Fecha',
+                    yaxis_title='Cantidad de Registros (DNI)',
+                    hovermode='x unified',
+                    legend=dict(
+                        title='MCPs (clic para mostrar/ocultar)',
+                        yanchor="top",
+                        y=0.99,
+                        xanchor="left",
+                        x=1.01
+                    ),
+                    height=600,
+                    template='plotly_white'
+                )
 
-        # Líneas por MCP
-        for mcp in data_agregado['mcp'].unique():
-            df_mcp = data_agregado[data_agregado['mcp'] == mcp]
-            fig.add_trace(go.Scatter(
-                x=df_mcp['date'],
-                y=df_mcp['count'],
-                mode='lines+markers',
-                name=mcp,
-                line=dict(width=1.5),
-                marker=dict(size=5),
-                visible='legendonly',
-                hovertemplate=f'<b>{mcp}</b><br>Fecha: %{{x}}<br>Registros: %{{y}}<extra></extra>'
-            ))
-
-        # Layout
-        fig.update_layout(
-            title='📈 Avance de Registros por MCP y Fecha',
-            xaxis_title='Fecha',
-            yaxis_title='Cantidad de Registros (DNI)',
-            hovermode='x unified',
-            legend=dict(
-                title='MCPs (clic para mostrar/ocultar)',
-                yanchor="top",
-                y=0.99,
-                xanchor="left",
-                x=1.01
-            ),
-            height=600,
-            template='plotly_white'
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("`data_graf.xlsx` no contiene las columnas necesarias ('date','mcp','dni_ciu') para mostrar el gráfico temporal.")
+        except Exception as e:
+            st.error(f"Error al procesar data_graf: {e}")
     else:
         st.warning("No se pudo cargar `data_graf.xlsx`. No se muestra el gráfico.")
 
     st.markdown("---")
-st.subheader("📋 Tabla de Avance por MCP")
 
-if not tabla_desagregada_mcp_merged.empty:
+    # Tabla de Avance por MCP (si existe)
+    st.subheader("📋 Tabla de Avance por MCP")
+    if not tabla_desagregada_mcp_merged.empty:
+        try:
+            tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
+                by=["departamento", "PROV", "MCP"]
+            )
 
-    # Ordenar tabla
-    tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
-        by=["departamento", "PROV", "MCP"]
-    )
+            tabla_mostrar = tabla_ordenada.rename(columns={
+                "departamento": "Departamento",
+                "PROV": "Provincia",
+                "MCP": "Municipalidad de Centro Poblado",
+                "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
+                "dni_ciu": "Cantidad de DNIs Registrados",
+                "PORC_AVANCE": "% Avance",
+            })
 
-    # Renombrar columnas para mostrar
-    tabla_mostrar = tabla_ordenada.rename(columns={
-        "departamento": "Departamento",
-        "PROV": "Provincia",
-        "MCP": "Municipalidad de Centro Poblado",
-        "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
-        "dni_ciu": "Cantidad de DNIs Registrados",
-        "PORC_AVANCE": "% Avance",
-    })
+            tabla_mostrar = tabla_mostrar.reset_index(drop=True)
+            tabla_mostrar.index = tabla_mostrar.index + 1
+            tabla_mostrar.index.name = "N°"
 
-    # Crear índice desde 1
-    tabla_mostrar = tabla_mostrar.reset_index(drop=True)
-    tabla_mostrar.index = tabla_mostrar.index + 1
-    tabla_mostrar.index.name = "N°"
+            columnas_mostrar = [
+                "Departamento",
+                "Provincia",
+                "Municipalidad de Centro Poblado",
+                "Población Electoral Estimada",
+                "Cantidad de DNIs Registrados",
+                "% Avance",
+            ]
 
-    # Columnas a mostrar (seguras)
-    columnas_mostrar = [
-        "Departamento",
-        "Provincia",
-        "Municipalidad de Centro Poblado",
-        "Población Electoral Estimada",
-        "Cantidad de DNIs Registrados",
-        "% Avance",
-    ]
-
-    # Mostrar tabla final
-    st.dataframe(
-        tabla_mostrar[columnas_mostrar],
-        use_container_width=True,
-        height=600
-    )
-
-else:
-    st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
-    
+            st.dataframe(
+                tabla_mostrar[columnas_mostrar],
+                use_container_width=True,
+                height=600
+            )
+        except Exception as e:
+            st.error(f"Error mostrando tabla_desagregada_mcp_merged: {e}")
+    else:
+        st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
 
 # ===========================================
 # 📍 TAB 2: DETALLE POR MCP (Por empadronador)
 # ===========================================
 with tab2:
-
     st.subheader("Detalle por MCP")
 
-    # Selector de MCP
-    mcp_seleccionado = st.selectbox(
-        "Selecciona un MCP:",
-        options=list(mcp_details.keys())
-    )
-
-    df_mcp = mcp_details[mcp_seleccionado]
-
-    if df_mcp.empty:
-        st.warning("No hay datos para este MCP.")
+    if not mcp_details:
+        st.warning("No se encontraron archivos de monitoreo (data_monitoreo_*) en la carpeta data/.")
     else:
+        # Ordenar lista de MCPs para el selector
+        lista_mcps = sorted(list(mcp_details.keys()))
+        mcp_seleccionado = st.selectbox("Selecciona un MCP:", options=lista_mcps)
 
-        # Validación de columnas
-        columnas_esperadas = {"empadronador", "total_registros"}
-        columnas_presentes = set(df_mcp.columns.str.lower())
+        # Obtener df
+        df_mcp = mcp_details.get(mcp_seleccionado, pd.DataFrame())
 
-        if not columnas_esperadas.issubset(columnas_presentes):
-            st.error(
-                f"❌ El archivo de {mcp_seleccionado} no tiene las columnas requeridas.\n\n"
-                f"Esperadas: {columnas_esperadas}\n"
-                f"Encontradas: {list(df_mcp.columns)}"
-            )
+        # Mostrar columnas detectadas (útil para debug)
+        if not df_mcp.empty:
+            st.write("Columnas detectadas:", list(df_mcp.columns))
+
+        if df_mcp.empty:
+            st.warning(f"No hay datos procesables para {mcp_seleccionado}.")
         else:
-            # Asegurar nombres consistentes
-            df_mcp.columns = df_mcp.columns.str.lower()
+            # Aseguramos nombres en minúsculas (nuestro contrato interno)
+            df_mcp = df_mcp.copy()
+            df_mcp.columns = [c.lower().strip() for c in df_mcp.columns]
 
-            # Orden ascendente para gráfico
-            conteo = df_mcp.sort_values("total_registros", ascending=True)
+            # Si existe total_registros ya lo usamos; si no, intentar agrupar por empadronador + dni
+            if ("empadronador" in df_mcp.columns) and ("total_registros" in df_mcp.columns):
+                conteo = df_mcp.sort_values("total_registros", ascending=True)
+            else:
+                # intentar agrupar por empadronador identificando columna de dni si existe
+                possible_dni = [c for c in df_mcp.columns if "dni" in c or "doc" in c or "num_doc" in c]
+                possible_emp = [c for c in df_mcp.columns if "empadronador" in c or "usuario" in c or "registrador" in c or "nom" in c]
 
-            st.markdown(f"### 🧑‍💼 Registros por empadronador — {mcp_seleccionado}")
+                if possible_emp and possible_dni:
+                    emp_col = possible_emp[0]
+                    dni_col = possible_dni[0]
+                    conteo = (
+                        df_mcp.groupby(emp_col)[dni_col]
+                        .count()
+                        .reset_index(name="total_registros")
+                        .rename(columns={emp_col: "empadronador"})
+                        .sort_values("total_registros", ascending=True)
+                    )
+                else:
+                    st.error("El archivo no tiene columnas identificables para empadronador y/o DNI. "
+                             "Asegura que la hoja tenga 'empadronador' y 'total_registros' o columnas con 'dni' y 'empadronador'.")
+                    conteo = pd.DataFrame(columns=["empadronador", "total_registros"])
 
-            # ============================
-            # 📊 Gráfico de barras horizontal
-            # ============================
-            fig = go.Figure()
+            if conteo.empty:
+                st.warning("No hay registros para mostrar.")
+            else:
+                st.markdown(f"### 🧑‍💼 Registros por empadronador — {mcp_seleccionado}")
 
-            fig.add_trace(go.Bar(
-                x=conteo["total_registros"],
-                y=conteo["empadronador"],
-                orientation="h",
-                marker=dict(color="#4A90E2"),
-                hovertemplate="<b>%{y}</b><br>Registros: %{x}<extra></extra>"
-            ))
+                # Gráfico horizontal
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    x=conteo["total_registros"],
+                    y=conteo["empadronador"],
+                    orientation="h",
+                    marker=dict(color="#4A90E2"),
+                    hovertemplate="<b>%{y}</b><br>Registros: %{x}<extra></extra>"
+                ))
 
-            fig.update_layout(
-                title=f"Total de registros por empadronador — {mcp_seleccionado}",
-                xaxis_title="Total de registros (DNIs)",
-                yaxis_title="Empadronador",
-                height=600,
-                template="plotly_white"
-            )
+                fig.update_layout(
+                    title=f"Total de registros por empadronador — {mcp_seleccionado}",
+                    xaxis_title="Total de registros (DNIs)",
+                    yaxis_title="Empadronador",
+                    height=600,
+                    template="plotly_white",
+                    margin=dict(l=200)  # espacio para nombres largos de empadronadores
+                )
 
-            st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Tabla resumen (ordenada desc)
+                st.markdown("### 📋 Tabla resumida")
+                st.dataframe(conteo.sort_values("total_registros", ascending=False), use_container_width=True)
 
