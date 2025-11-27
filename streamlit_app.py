@@ -283,5 +283,13 @@ with tab2:
                 hovertemplate="<b>%{y}</b><br>Registros: %{x}<extra></extra>"
             ))
 
-            fig.update_layout(_
+            fig.update_layout(
+                title=f"Total de registros por empadronador — {mcp_seleccionado}",
+                xaxis_title="Total de registros (DNIs)",
+                yaxis_title="Empadronador",
+                height=600,
+                template="plotly_white"
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
 
