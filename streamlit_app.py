@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import os
+import streamlit.components.v1 as components
 
 # ========================
 # CONFIGURACIÓN GENERAL
@@ -107,9 +108,10 @@ mcp_details = load_mcp_details_from_data_folder()
 # ========================
 # PESTAÑAS
 # ========================
-tab1, tab2 = st.tabs([
+tab1, tab2, tab3 = st.tabs([
     "📈 Progreso General",
     "📍 Monitoreo por MCP",
+    "🗺️ Mapa de Empadronamiento"
 ])
 
 # ===========================================
@@ -218,52 +220,52 @@ with tab1:
 
     st.markdown("---")
 
-# Tabla de Avance por MCP (si existe)
-st.subheader("📋 Tabla de Avance por MCP")
-if not tabla_desagregada_mcp_merged.empty:
-    try:
-        tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
-            by=["departamento", "PROV", "MCP"]
-        )
+    # Tabla de Avance por MCP (si existe)
+    st.subheader("📋 Tabla de Avance por MCP")
+    if not tabla_desagregada_mcp_merged.empty:
+        try:
+            tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
+                by=["departamento", "PROV", "MCP"]
+            )
 
-        tabla_mostrar = tabla_ordenada.rename(columns={
-            "departamento": "Departamento",
-            "PROV": "Provincia",
-            "MCP": "Municipalidad de Centro Poblado",
-            "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
-            "dni_ciu": "Cantidad de DNIs Registrados",
-            "PORC_AVANCE": "% Avance",
-        })
+            tabla_mostrar = tabla_ordenada.rename(columns={
+                "departamento": "Departamento",
+                "PROV": "Provincia",
+                "MCP": "Municipalidad de Centro Poblado",
+                "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
+                "dni_ciu": "Cantidad de DNIs Registrados",
+                "PORC_AVANCE": "% Avance",
+            })
 
-        # ORDENAR DE MAYOR A MENOR POR DNIs REGISTRADOS
-        tabla_mostrar = tabla_mostrar.sort_values(
-            by="Cantidad de DNIs Registrados",
-            ascending=False
-        )
+            # ORDENAR DE MAYOR A MENOR POR DNIs REGISTRADOS
+            tabla_mostrar = tabla_mostrar.sort_values(
+                by="Cantidad de DNIs Registrados",
+                ascending=False
+            )
 
-        tabla_mostrar = tabla_mostrar.reset_index(drop=True)
-        tabla_mostrar.index = tabla_mostrar.index + 1
-        tabla_mostrar.index.name = "N°"
+            tabla_mostrar = tabla_mostrar.reset_index(drop=True)
+            tabla_mostrar.index = tabla_mostrar.index + 1
+            tabla_mostrar.index.name = "N°"
 
-        columnas_mostrar = [
-            "Departamento",
-            "Provincia",
-            "Municipalidad de Centro Poblado",
-            "Población Electoral Estimada",
-            "Cantidad de DNIs Registrados",
-            "% Avance",
-        ]
+            columnas_mostrar = [
+                "Departamento",
+                "Provincia",
+                "Municipalidad de Centro Poblado",
+                "Población Electoral Estimada",
+                "Cantidad de DNIs Registrados",
+                "% Avance",
+            ]
 
-        st.dataframe(
-            tabla_mostrar[columnas_mostrar],
-            use_container_width=True,
-            height=600
-        )
+            st.dataframe(
+                tabla_mostrar[columnas_mostrar],
+                use_container_width=True,
+                height=600
+            )
 
-    except Exception as e:
-        st.error(f"Error mostrando tabla_desagregada_mcp_merged: {e}")
-else:
-    st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
+        except Exception as e:
+            st.error(f"Error mostrando tabla_desagregada_mcp_merged: {e}")
+    else:
+        st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
 
 
 # ===========================================
@@ -342,3 +344,25 @@ with tab2:
                 st.markdown("### 📋 Tabla de conteo general")
                 st.dataframe(conteo.sort_values("total_registros", ascending=False), use_container_width=True)
 
+
+# ===========================================
+# 🗺️ TAB 3: MAPA DE EMPADRONAMIENTO
+# ===========================================
+with tab3:
+    st.subheader("🗺️ Mapa de Empadronamiento")
+    
+    # Ruta del archivo HTML del mapa
+    mapa_path = "mapa_empadronamiento.html"
+    
+    # Verificar si el archivo existe
+    if os.path.exists(mapa_path):
+        # Leer el contenido del archivo HTML
+        with open(mapa_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Mostrar el mapa usando components.html
+        components.html(html_content, height=800, scrolling=True)
+        
+    else:
+        st.error(f"No se encontró el archivo '{mapa_path}'. Asegúrate de que el archivo esté en la misma carpeta que el script de Streamlit.")
+        st.info("El mapa debe estar guardado como 'mapa_empadronamiento.html' en el directorio principal de la aplicación.")
