@@ -162,38 +162,19 @@ with tab1:
     else:
         st.warning("No se pudo cargar `data_graf.xlsx`. No se muestra el gráfico.")
 
-    st.markdown("### Nota")
-    st.write("Los indicadores se actualizan automáticamente desde `data/value_box.xlsx`.")
-
-# ===========================================
-# 📍 TAB 2: DETALLE POR MCP
-# ===========================================
-with tab2:
-
-    st.subheader("📋 Avance por Departamento, Provincia y MCP")
+        st.markdown("---")
+    st.subheader("📋 Avance por Departamento, Provincia y MCP (Tabla Completa)")
 
     if not tabla_desagregada_mcp_merged.empty:
 
-        tabla_desagregada_mcp_merged = tabla_desagregada_mcp_merged.sort_values(
+        # Ordenar tabla
+        tabla_ordenada = tabla_desagregada_mcp_merged.sort_values(
             by=["departamento", "PROV", "MCP"]
         )
 
-        departamentos = tabla_desagregada_mcp_merged["departamento"].unique()
-        dep_select = st.selectbox("Selecciona un departamento:", departamentos)
-
-        df_dep = tabla_desagregada_mcp_merged[
-            tabla_desagregada_mcp_merged["departamento"] == dep_select
-        ]
-
-        provincias = df_dep["PROV"].unique()
-        prov_select = st.selectbox("Selecciona una provincia:", provincias)
-
-        df_prov = df_dep[df_dep["PROV"] == prov_select]
-
-        st.write(f"### Resultados para: **{dep_select} / {prov_select}**")
-
+        # Mostrar tabla completa
         st.dataframe(
-            df_prov[
+            tabla_ordenada[
                 [
                     "departamento",
                     "PROV",
@@ -203,11 +184,16 @@ with tab2:
                     "PORC_AVANCE",
                 ]
             ],
-            use_container_width=True
+            use_container_width=True,
+            height=600
         )
 
     else:
         st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
+
+
+    st.markdown("### Nota")
+    st.write("Los indicadores se actualizan automáticamente desde `data/value_box.xlsx`.")
 
 # ===========================================
 # 📋 TAB 3: OTROS INDICADORES (placeholder)
