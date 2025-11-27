@@ -172,16 +172,26 @@ with tab1:
             by=["departamento", "PROV", "MCP"]
         )
 
-        # Mostrar tabla completa
+        # Renombrar columnas para mostrar
+        tabla_mostrar = tabla_ordenada.rename(columns={
+            "departamento": "Departamento",
+            "PROV": "Provincia",
+            "MCP": "Municipialidad de Centro Poblado",
+            "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
+            "dni_ciu": "Cantidad de DNIs Registrados",
+            "PORC_AVANCE": "% Avance",
+        })
+
+        # Mostrar tabla
         st.dataframe(
-            tabla_ordenada[
+            tabla_mostrar[
                 [
-                    "departamento",
-                    "PROV",
-                    "MCP",
-                    "POBLACION_AJUSTADA_FINAL",
-                    "dni_ciu",
-                    "PORC_AVANCE",
+                    "Departamento",
+                    "Provincia",
+                    "Municipio CP",
+                    "Población Ajustada",
+                    "DNIs Registrados",
+                    "% Avance",
                 ]
             ],
             use_container_width=True,
@@ -190,6 +200,7 @@ with tab1:
 
     else:
         st.warning("No se pudo cargar `tabla_desagregada_mcp_merged.xlsx`. No se muestra la tabla.")
+
 
 
     st.markdown("### Nota")
