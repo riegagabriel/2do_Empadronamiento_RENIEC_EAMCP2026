@@ -53,24 +53,28 @@ def load_mcp_details():
     data = {}
 
     try:
-        data["19 DE AGOSTO"] = pd.read_excel("data/data_monitoreo_19_de_agosto.xlsx")
-        data["CIUDAD DE DIOS"] = pd.read_excel("data/data_monitoreo_ciudad_de_dios.xlsx")
-        data["CRUZ PAMPA YAPATERA"] = pd.read_excel("data/data_monitoreo_cruz_pampa_yapatera.xlsx")
-        data["CURVA DE SUN"] = pd.read_excel("data/data_monitoreo_curva_de_sun.xlsx")
-        data["HUAMBOCANCHA ALTA"] = pd.read_excel("data/data_monitoreo_huambocancha_alta.xlsx")
-        data["HUANCHAQUITO"] = pd.read_excel("data/data_monitoreo_huanchaquito.xlsx")
-        data["LA COLORADA"] = pd.read_excel("data/data_monitoreo_la_colorada.xlsx")
-        data["LA PEÑITA"] = pd.read_excel("data/data_monitoreo_la_peñita.xlsx")
-        data["LA VILLA LETIRA - BECARA"] = pd.read_excel("data/data_monitoreo_la_villa_letira_becara.xlsx")
-        data["MALINGAS"] = pd.read_excel("data/data_monitoreo_malingas.xlsx")
-        data["OTUZCO"] = pd.read_excel("data/data_monitoreo_otuzco.xlsx")
-        data["SAN ANTONIO BAJO"] = pd.read_excel("data/data_monitoreo_san_antonio_bajo.xlsx")
-        data["VIVIATE"] = pd.read_excel("data/data_monitoreo_viviate.xlsx")
+        data["19 DE AGOSTO"] = pd.read_excel("data_monitoreo_19_de_agosto.xlsx")
+        data["CIUDAD DE DIOS"] = pd.read_excel("data_monitoreo_ciudad_de_dios.xlsx")
+        data["CRUZ PAMPA YAPATERA"] = pd.read_excel("data_monitoreo_cruz_pampa_yapatera.xlsx")
+        data["CURVA DE SUN"] = pd.read_excel("data_monitoreo_curva_de_sun.xlsx")
+        data["HUAMBOCANCHA ALTA"] = pd.read_excel("data_monitoreo_huambocancha_alta.xlsx")
+        data["HUANCHAQUITO"] = pd.read_excel("data_monitoreo_huanchaquito.xlsx")
+        data["LA COLORADA"] = pd.read_excel("data_monitoreo_la_colorada.xlsx")
+        data["LA PEÑITA"] = pd.read_excel("data_monitoreo_la_peñita.xlsx")
+        data["LA VILLA LETIRA - BECARA"] = pd.read_excel("data_monitoreo_la_villa_letira_becara.xlsx")
+        data["MALINGAS"] = pd.read_excel("data_monitoreo_malingas.xlsx")
+        data["OTUZCO"] = pd.read_excel("data_monitoreo_otuzco.xlsx")
+
+        # ⚠️ Estos dos NO aparecen en tu lista de archivos reales
+        # Los dejo pero te avisará si faltan
+        data["SAN ANTONIO BAJO"] = pd.read_excel("data_monitoreo_san_antonio_bajo.xlsx")
+        data["VIVIATE"] = pd.read_excel("data_monitoreo_viviate.xlsx")
 
     except Exception as e:
         st.error(f"Error cargando datos detallados por MCP: {e}")
 
     return data
+
 
 value_box = load_value_box()
 data_graf = load_data_graf()
