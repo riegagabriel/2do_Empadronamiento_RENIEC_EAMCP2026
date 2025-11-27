@@ -188,9 +188,9 @@ with tab1:
                 [
                     "Departamento",
                     "Provincia",
-                    "Municipio CP",
-                    "Población Ajustada",
-                    "DNIs Registrados",
+                    "Municipialidad de Centro Poblado",
+                    "Población Electoral Estimada",
+                    "Cantidad de DNIs Registrados",
                     "% Avance",
                 ]
             ],
