@@ -351,6 +351,12 @@ with tab2:
 with tab3:
     st.subheader("🗺️ Mapa de Empadronamiento")
     
+    # Texto de leyenda
+    st.markdown(
+        "📝 **Leyenda:**\n"
+        "- 🔴 Rojo: Puntos donde se registraron formularios virutales\n"
+    )
+    
     # Ruta del archivo HTML del mapa
     mapa_path = "data/mapa_empadronamiento.html"
     
@@ -366,3 +372,4 @@ with tab3:
     else:
         st.error(f"No se encontró el archivo '{mapa_path}'. Asegúrate de que el archivo esté en la misma carpeta que el script de Streamlit.")
         st.info("El mapa debe estar guardado como 'mapa_empadronamiento.html' en el directorio principal de la aplicación.")
+
