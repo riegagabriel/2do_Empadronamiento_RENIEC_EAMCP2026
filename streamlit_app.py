@@ -255,6 +255,7 @@ with tab1:
                 "Población Electoral Estimada",
                 "Cantidad de DNIs Registrados",
                 "% Avance",
+                "Monitor"
             ]
 
             st.dataframe(
