@@ -232,6 +232,7 @@ with tab1:
                 "departamento": "Departamento",
                 "PROV": "Provincia",
                 "MCP": "Municipalidad de Centro Poblado",
+                "Monitor": "Monitor",
                 "POBLACION_AJUSTADA_FINAL": "Población Electoral Estimada",
                 "dni_ciu": "Cantidad de DNIs Registrados",
                 "PORC_AVANCE": "% Avance",
