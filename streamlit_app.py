@@ -472,30 +472,35 @@ with tab2:
 
 
 # ===========================================
-# 🗺️ TAB 3: MAPA DE EMPADRONAMIENTO
+# 🗺️ TAB 3: MAPA DE EMPADRONAMIENTO (ZIP)
 # ===========================================
 with tab3:
     st.subheader("🗺️ Mapa de Empadronamiento")
 
-    # Texto de leyenda
     st.markdown(
         "📝 **Leyenda:**\n"
-        "- 🔴 Rojo: Puntos donde se registraron formularios virutales\n"
+        "- 🔴 Rojo: Puntos donde se registraron formularios virtuales\n"
     )
 
-    # Ruta del archivo HTML del mapa
-    mapa_path = "data/mapa_empadronamiento.html"
+    # Ruta al ZIP
+    zip_path = "data/mapa_empadronamiento.zip"
 
-    # Verificar si el archivo existe
-    if os.path.exists(mapa_path):
-        # Leer el contenido del archivo HTML
-        with open(mapa_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
+    if os.path.exists(zip_path):
 
-        # Mostrar el mapa usando components.html
-        components.html(html_content, height=800, scrolling=True)
+        import zipfile
+
+        try:
+            # Abrir ZIP y leer el HTML internamente
+            with zipfile.ZipFile(zip_path, "r") as z:
+                with z.open("mapa_empadronamiento.html") as f:
+                    html_content = f.read().decode("utf-8")
+
+            # Mostrar el mapa en Streamlit
+            components.html(html_content, height=800, scrolling=True)
+
+        except Exception as e:
+            st.error(f"Error leyendo el archivo ZIP: {e}")
 
     else:
-        st.error(f"No se encontró el archivo '{mapa_path}'. Asegúrate de que el archivo esté en la misma carpeta que el script de Streamlit.")
-        st.info("El mapa debe estar guardado como 'mapa_empadronamiento.html' en el directorio principal de la aplicación.")
+        st.error(f"No se encontró '{zip_path}'. Súbelo a la carpeta data/.")
 
