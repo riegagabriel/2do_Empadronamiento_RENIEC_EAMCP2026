@@ -1,8 +1,8 @@
-# streamlit_app.py
+# streamlit_app.py (archivo completo)
+import os
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import os
 import streamlit.components.v1 as components
 
 # ========================
@@ -22,27 +22,22 @@ st.markdown("Monitoreo de avance de los Municipios de Centros Poblados (MCP)")
 @st.cache_data
 def load_excel(path: str, sheet_name=0):
     """
-    Lee un excel y devuelve un DataFrame.
-    - sheet_name: por defecto 0 (primera hoja). Si se pasa None y pd.read_excel
-      devolviera un dict, se toma la primera hoja.
+    Lee un Excel de forma robusta.
+    - sheet_name por defecto es 0 (primera hoja).
+    - Si ocurre un error devuelve DataFrame vacío.
     """
     try:
-        df = pd.read_excel(path, sheet_name=sheet_name)
-        # Si pandas devolvió un dict (varias hojas y sheet_name=None), tomar la primera hoja
-        if isinstance(df, dict):
-            first = list(df.keys())[0]
-            df = df[first]
-        return df
+        # Forzamos sheet_name por defecto a 0 para evitar que read_excel devuelva dict()
+        return pd.read_excel(path, sheet_name=sheet_name)
     except Exception as e:
-        # No usar st.error aquí porque esto puede correr en etapas de carga y no queremos romper la app
-        st.warning(f"Advertencia al leer {path}: {e}")
+        st.warning(f"Advertencia al leer {path} (sheet={sheet_name}): {e}")
         return pd.DataFrame()
 
 # ========================
 # Cargar DataFrames principales
 # ========================
-value_box = load_excel("data/value_box.xlsx")                    # espera hoja única
-data_graf = load_excel("data/data_graf.xlsx")                    # espera hoja única
+value_box = load_excel("data/value_box.xlsx")
+data_graf = load_excel("data/data_graf.xlsx")
 tabla_desagregada_mcp_merged = load_excel("data/tabla_desagregada_mcp_merged.xlsx")
 
 # ================================
@@ -54,7 +49,7 @@ def load_mcp_details_from_data_folder():
     try:
         files = os.listdir(base_path)
     except Exception as e:
-        st.warning(f"No se pudo listar la carpeta data/: {e}")
+        st.error(f"No se pudo listar la carpeta data/: {e}")
         return {}
 
     mcp_dict = {}
@@ -64,35 +59,42 @@ def load_mcp_details_from_data_folder():
         if low.startswith("data_monitoreo_") and (low.endswith(".xlsx") or low.endswith(".xls")):
             path = os.path.join(base_path, f)
 
-            # Intentar leer el archivo; load_excel devolverá DataFrame (o vacío)
+            # Intentar leer la primera hoja (como DataFrame). load_excel devuelve DataFrame o DataFrame vacío.
             df = load_excel(path, sheet_name=0)
 
-            # Si por alguna razón load_excel devolvió dict (no debería), tomar primera hoja
+            # Si por alguna razón load_excel devolviera dict (no debería), intentar coger la primera hoja.
             if isinstance(df, dict):
-                first = list(df.keys())[0]
-                df = df[first]
+                # tomar la primera hoja del dict
+                try:
+                    first_sheet = list(df.keys())[0]
+                    df = df[first_sheet]
+                except Exception:
+                    df = pd.DataFrame()
 
             # Nombre legible de la MCP: quitar prefijo y extensión, reemplazar guiones/underscores por espacios
             name = f[len("data_monitoreo_"):]
+            # remover extensión
             if name.lower().endswith(".xlsx"):
                 name = name[:-5]
             elif name.lower().endswith(".xls"):
                 name = name[:-4]
+            # formatear nombre: cambiar underscores por espacios y mayúsculas
             mcp_name = name.replace("_", " ").strip().upper()
 
-            # Si df no es DataFrame (por error), colocamos DataFrame vacío
+            # Si df no es DataFrame, lo avisamos y añadimos vacío
             if not isinstance(df, pd.DataFrame):
-                st.warning(f"El archivo {f} no pudo convertirse a DataFrame. Se ignorará.")
+                st.warning(f"El archivo {f} no se pudo leer como tabla. Se añade vacío para {mcp_name}.")
                 mcp_dict[mcp_name] = pd.DataFrame(columns=["empadronador", "total_registros"])
                 continue
 
-            # Normalizar columnas para reconocimiento
-            cols_lower = [c.lower().strip() for c in df.columns]
+            # Normalizar columnas para reconocimiento (pero no forzamos renombrar en el DF original salvo para uso interno)
+            cols_lower = [str(c).lower().strip() for c in df.columns]
 
             # Caso 1: archivo ya viene agregado: 'empadronador' y 'total_registros'
             if ("empadronador" in cols_lower) and ("total_registros" in cols_lower):
+                # Hacemos copia y uniformizamos nombres a minúsculas
                 df2 = df.copy()
-                df2.columns = [c.lower().strip() for c in df2.columns]
+                df2.columns = [str(c).lower().strip() for c in df2.columns]
                 # Asegurar los tipos
                 try:
                     df2["total_registros"] = pd.to_numeric(df2["total_registros"], errors="coerce").fillna(0).astype(int)
@@ -102,8 +104,8 @@ def load_mcp_details_from_data_folder():
                 continue
 
             # Caso 2: archivo crudo con registros individuales: buscar columna dni + empadronador para agrupar
-            possible_dni_cols = [c for c in df.columns if "dni" in c.lower() or "doc" in c.lower() or "num_doc" in c.lower()]
-            possible_emp_cols = [c for c in df.columns if "empadronador" in c.lower() or "usuario" in c.lower() or "registrador" in c.lower() or "nom" in c.lower()]
+            possible_dni_cols = [c for c in df.columns if "dni" in str(c).lower() or "doc" in str(c).lower() or "num_doc" in str(c).lower()]
+            possible_emp_cols = [c for c in df.columns if "empadronador" in str(c).lower() or "usuario" in str(c).lower() or "registrador" in str(c).lower() or "nom" in str(c).lower()]
 
             if possible_dni_cols and possible_emp_cols:
                 dni_col = possible_dni_cols[0]
@@ -116,6 +118,7 @@ def load_mcp_details_from_data_folder():
                         .rename(columns={emp_col: "empadronador"})
                         .sort_values("total_registros", ascending=False)
                     )
+                    # Normalizar columnas
                     conteo.columns = [c.lower().strip() for c in conteo.columns]
                     mcp_dict[mcp_name] = conteo[["empadronador", "total_registros"]]
                     continue
@@ -308,7 +311,7 @@ with tab2:
         lista_mcps = sorted(list(mcp_details.keys()))
         mcp_seleccionado = st.selectbox("Selecciona un MCP:", options=lista_mcps)
 
-        # Obtener df (ya normalizado por load_mcp_details_from_data_folder)
+        # Obtener df
         df_mcp = mcp_details.get(mcp_seleccionado, pd.DataFrame())
 
         if df_mcp.empty:
@@ -371,109 +374,95 @@ with tab2:
                 st.markdown("### 📋 Tabla de conteo general")
                 st.dataframe(conteo.sort_values("total_registros", ascending=False), use_container_width=True)
 
+
                 # ===========================================
                 # 🔥 HEATMAP DE AVANCE DIARIO POR EMPADRONADOR
                 # ===========================================
                 st.markdown("---")
                 st.markdown("## 🔥 Avance diario por empadronador")
 
-                # Nombre estandarizado para buscar el archivo (sin prefijos)
+                # Nombre estandarizado para buscar el archivo
                 nombre_archivo = mcp_seleccionado.lower().replace(" ", "_")
                 path_excel = f"data/{nombre_archivo}.xlsx"
 
                 if os.path.exists(path_excel):
+
                     try:
-                        # Intentar leer hojas 'crosstab' y 'annot' por nombre
+                        # Leer las dos hojas esperadas: 'crosstab' y 'annot'
                         diario_df = load_excel(path_excel, sheet_name="crosstab")
                         annot_df = load_excel(path_excel, sheet_name="annot")
 
-                        # Si están vacías o no existen esas hojas, intentar fallback por índices de hoja
-                        if diario_df.empty or annot_df.empty:
-                            # Leer primer y segunda hoja si existen
-                            try:
-                                diario_df = load_excel(path_excel, sheet_name=0)
-                            except Exception:
-                                diario_df = pd.DataFrame()
-                            try:
-                                annot_df = load_excel(path_excel, sheet_name=1)
-                            except Exception:
-                                annot_df = pd.DataFrame()
+                        # Si load_excel devolviera dict por alguna razón, extraer primera hoja:
+                        if isinstance(diario_df, dict):
+                            diario_df = diario_df[list(diario_df.keys())[0]]
+                        if isinstance(annot_df, dict):
+                            annot_df = annot_df[list(annot_df.keys())[0]]
 
-                        # Validar tipo
-                        if not isinstance(diario_df, pd.DataFrame) or not isinstance(annot_df, pd.DataFrame):
-                            st.warning("Las hojas del excel no son DataFrames válidos.")
-                        elif diario_df.empty or annot_df.empty:
-                            st.warning("Las hojas 'crosstab' o 'annot' están vacías o no se detectaron correctamente.")
-                        else:
+                        if not diario_df.empty and not annot_df.empty:
+
                             diario_sorted = diario_df.copy()
                             annot_sorted = annot_df.copy()
 
-                            # Intentar convertir columnas a fecha (si fallan se convierten en NaT)
+                            # --- FIX: asegurar índice con nombres ---
+                            # Si la primera columna contiene los nombres de empadronadores (cuando excel guardó el índice como columna)
+                            first_col = str(diario_sorted.columns[0]).lower() if len(diario_sorted.columns) > 0 else ""
+                            if first_col in ["empadronador", "empadronadores", "nombre", "nombres"]:
+                                # establecer esa columna como índice
+                                diario_sorted = diario_sorted.set_index(diario_sorted.columns[0])
+                                annot_sorted = annot_sorted.set_index(annot_sorted.columns[0])
+
+                            # Convertir columnas a fecha y limpiar columnas malas
                             diario_sorted.columns = pd.to_datetime(diario_sorted.columns, errors="coerce")
                             annot_sorted.columns = pd.to_datetime(annot_sorted.columns, errors="coerce")
 
-                            # Ordenar columnas (fechas). Si hay columnas NaT se mantienen al final; opcional: quitar NaT
-                            # Filtrar columnas que no sean NaT, pero mantener si todos NaT
-                            ok_cols = [c for c in diario_sorted.columns if not pd.isna(c)]
-                            if len(ok_cols) == 0:
-                                st.warning("No se detectaron columnas con formato de fecha en el crosstab.")
-                            else:
-                                diario_sorted = diario_sorted[ok_cols]
-                                annot_sorted = annot_sorted[ok_cols]
+                            diario_sorted = diario_sorted.dropna(axis=1, how="all")
+                            annot_sorted = annot_sorted.dropna(axis=1, how="all")
 
-                                diario_sorted = diario_sorted.sort_index(axis=1)
-                                annot_sorted = annot_sorted.sort_index(axis=1)
+                            # Ordenar columnas (fechas)
+                            diario_sorted = diario_sorted.sort_index(axis=1)
+                            annot_sorted = annot_sorted.sort_index(axis=1)
 
-                                # Etiquetas bonitas (DD/MM/YYYY)
-                                try:
-                                    x_labels = diario_sorted.columns.strftime('%d/%m/%Y')
-                                except Exception:
-                                    x_labels = [str(c) for c in diario_sorted.columns]
+                            # Verificar que tengamos índices con nombres (empadronadores)
+                            if diario_sorted.index.is_integer() or diario_sorted.index.name is None and all(isinstance(i, (int, float)) for i in diario_sorted.index):
+                                # índice numérico: los nombres no se leyeron correctamente
+                                st.warning("Atención: el crosstab no tiene un índice de empadronadores. Verifica que la hoja 'crosstab' tenga los nombres como índice o como primera columna llamada 'empadronador'.")
+                            # Formato de fecha bonito para etiquetas x
+                            x_labels = diario_sorted.columns.strftime('%d/%m/%Y')
 
-                                # Asegurar que text tenga la misma forma que z (si no, dejar sin text)
-                                text_values = None
-                                if annot_sorted.shape == diario_sorted.shape:
-                                    text_values = annot_sorted.values
-                                else:
-                                    # intentar adaptar si el index coincide pero columnas distintas
-                                    if list(annot_sorted.index) == list(diario_sorted.index):
-                                        # Reindex columns to diario_sorted.columns (try to cast str)
-                                        try:
-                                            annot_sorted = annot_sorted.reindex(columns=diario_sorted.columns)
-                                            text_values = annot_sorted.values
-                                        except Exception:
-                                            text_values = None
-                                    else:
-                                        text_values = None
-
-                                # HEATMAP
-                                fig_hm = go.Figure(data=go.Heatmap(
-                                    z=diario_sorted.values,
-                                    x=x_labels,
-                                    y=diario_sorted.index,
-                                    text=text_values,
-                                    texttemplate="%{text}" if text_values is not None else None,
-                                    colorscale="YlGnBu",
-                                    zmin=0,
-                                    zmax=30,
-                                    colorbar=dict(title="Avances diarios"),
-                                    hovertemplate=(
-                                        'Empadronador: %{y}<br>'
-                                        'Fecha: %{x}<br>'
-                                        'Avances: %{z}<extra></extra>'
-                                    )
-                                ))
-
-                                fig_hm.update_layout(
-                                    title=f"📅 Heatmap de avances diarios — {mcp_seleccionado}",
-                                    xaxis_title="Fecha",
-                                    yaxis_title="Empadronadores",
-                                    width=1000,
-                                    height=600,
-                                    margin=dict(l=120, r=20)
+                            # Construir HEATMAP
+                            fig_hm = go.Figure(data=go.Heatmap(
+                                z=diario_sorted.values,
+                                x=x_labels,
+                                y=diario_sorted.index.astype(str),
+                                text=annot_sorted.values,
+                                texttemplate="%{text}",
+                                colorscale="YlGnBu",
+                                zmin=0,
+                                zmax=30,
+                                colorbar=dict(title="Avances diarios"),
+                                hovertemplate=(
+                                    'Empadronador: %{y}<br>'
+                                    'Fecha: %{x}<br>'
+                                    'Avances: %{z}<extra></extra>'
                                 )
+                            ))
 
-                                st.plotly_chart(fig_hm, use_container_width=True)
+                            fig_hm.update_layout(
+                                title=f"📅 Heatmap de avances diarios — {mcp_seleccionado}",
+                                xaxis_title="Fecha",
+                                yaxis_title="Empadronadores",
+                                width=1000,
+                                height=600,
+                                margin=dict(l=160, r=20)
+                            )
+
+                            # Asegurar que Plotly muestre los nombres y margenes
+                            fig_hm.update_yaxes(automargin=True)
+
+                            st.plotly_chart(fig_hm, use_container_width=True)
+
+                        else:
+                            st.warning("Las hojas 'crosstab' o 'annot' están vacías. No se puede generar el heatmap.")
 
                     except Exception as e:
                         st.error(f"Error procesando heatmap para {mcp_seleccionado}: {e}")
@@ -509,3 +498,4 @@ with tab3:
     else:
         st.error(f"No se encontró el archivo '{mapa_path}'. Asegúrate de que el archivo esté en la misma carpeta que el script de Streamlit.")
         st.info("El mapa debe estar guardado como 'mapa_empadronamiento.html' en el directorio principal de la aplicación.")
+
